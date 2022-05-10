@@ -1,21 +1,35 @@
 /**********************************************************************************
- * TITULO: Código ESP32 - FIREBASE
- * AUTOR: Jhimmy Astoraque Durán
- * DESCRIPCION: Este es el código del capítulo 6 de la serie ESP32 del canal
- * CANAL YOUTUBE: https://www.youtube.com/c/jadsatv
- * © 2020
+ * TITULO: Código Robo-Doc (Sistemas Programables)
+ * AUTORES:   Jesus Saul Castañeda Hernandez
+ *            Jaime Daniel Cruz Bustamante
+ *            Citlaly Carolina Medina Gonzales
+ *            Eli Uziel Montes Perez
+ *            Carlos Eduardo Davila Silva
+ *            Beto
+ * DESCRIPCION: Este es el codigo del proyecto final de la materia de sistemas
+ *              programables (Robo Doc) impartida por la Ing. Lamia Hamdam en el
+ *              Instituto Tecnologico de la Laguna
+ * © 2022
  * *******************************************************************************/
 
+// ==================================== Librerias ===============================
 #include <WiFi.h>
 #include "FirebaseESP32.h"
 
+// ============================================================================
+// ==================================== Credenciales ===============================
 // Credenciales wifi
-#define WIFI_SSID "Mi 9T Pro"
-#define WIFI_PASSWORD "Pollito_210"
+//#define WIFI_SSID "Mi 9T Pro"
+//#define WIFI_PASSWORD "Pollito_210"
 
-// Credenciales Proyecto Firebase
+#define WIFI_SSID "HUAWEI-2105WC"
+#define WIFI_PASSWORD "asdasd123"
+
+// Credenciales base de datos Firebase
 #define FIREBASE_HOST "https://proyecto-final-sp-default-rtdb.firebaseio.com/"
 #define FIREBASE_AUTH "Yqd6Jx65dH0K6aEakfsUGg0a0WNEWF9vAyFj3AVg"
+// ============================================================================
+// ============================ Nodos y Rutas de Firebase =======================
 
 // Firebase Data object
 FirebaseData firebaseData;
@@ -39,33 +53,39 @@ String derechaValue = "0";
 String izquierdaPath = "/izquierda";
 String izquierdaValue = "0";
 
-// Constantes de los pines de salida
-const int output18 = 18;
-const int output19 = 19;
-const int output21 = 21;
-const int output22 = 22;
+// ============================================================================
+// ================== Constantes de los pines de salida =======================
+// Constantes de los pines de salida del lado izquierdo
+const int out18 = 18; // Pin que controla el sentido del giro del lado A
+const int out19 = 19; // Pin que controla el sentido del giro del lado A
+const int ena21 = 21; // Pin que controla la velocidad del lado A
 
-// ================== Variables globales =======================
-// Variable iterator para los ciclos
-boolean iterator = false;
+// Constantes de los pines de salida del lado derecho
+const int out12 = 12; // Pin que controla el sentido del giro del lado B
+const int out13 = 13; // Pin que controla el sentido del giro del lado B
+const int ena14 = 14; // Pin que controla la velocidad del lado B
 
-void setup() 
+// ============================================================================
+// ========================= Variables globales ==============================
+
+// ============================================================================
+// ================================== Setup ===================================
+void setup()
 {
   Serial.begin(115200);
   Serial.println();
 
-  pinMode(output18, OUTPUT);
-  digitalWrite(output18, LOW);
+  // Modos de pin del lado A
+  pinMode(out18, OUTPUT);
+  pinMode(out19, OUTPUT);
+  pinMode(ena21, OUTPUT);
 
-  pinMode(output19, OUTPUT);
-  digitalWrite(output19, LOW);
+  // Modos de pin del lado B
+  pinMode(out12, OUTPUT);
+  pinMode(out13, OUTPUT);
+  pinMode(ena14, OUTPUT);
 
-  pinMode(output21, OUTPUT);
-  digitalWrite(output21, LOW);
-
-  pinMode(output22, OUTPUT);
-  digitalWrite(output22, LOW);
-
+  // Conexion del modulo a la red WIFI
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Conectado al Wi-Fi");
   while (WiFi.status() != WL_CONNECTED)
@@ -76,65 +96,128 @@ void setup()
   Serial.println();
   Serial.println("WiFi connected.");
   Serial.println("IP address: ");
+  // Se imprime la direccion IP
   Serial.println(WiFi.localIP());
 
+  // Conexion a la base de datos de Firebase
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
   Firebase.reconnectWiFi(true);
 }
+// ============================================================================
+// ================================== Loop ===================================
+void loop()
+{
+  int direccion = lecturaDatos(); // Lectura de datos de firebase para el movimiento
 
+  if (direccion != 0) 
+    switch (direccion)
+    {
+    case 1:
+      adelante(40);
+      break;
+      case 2:
+      atras(40);
+      break;
+      case 3:
+      giroDerecha(40);
+      break;
+      case 4:
+      giroIzquierda(40);
+      break;
+    default:
+      break;
+    }
 
-void loop() 
+  delay(20);
+}
+// ============================================================================
+// =============================== Lectura Datos ==============================
+int lecturaDatos()
 {
   //============= Inicio LECTURA Adelante =======================
   Firebase.getString(firebaseData, nodo + adelantePath);
   adelanteValue = firebaseData.stringData();
+  if (adelanteValue == 1)
+    return 1;
   //============= Fin LECTURA Adelante ==========================
   //================ Inicio LECTURA Atras =======================
   Firebase.getString(firebaseData, nodo + atrasPath);
   atrasValue = firebaseData.stringData();
+  if (atrasValue == 1)
+    return 2;
   //================ Fin LECTURA Atras ==========================
   //============= Inicio LECTURA Derecha ========================
   Firebase.getString(firebaseData, nodo + derechaPath);
   derechaValue = firebaseData.stringData();
+  if (derechaValue == 1)
+    return 3;
   //============= Fin LECTURA Derecha ===========================
-    //============= Inicio LECTURA Izquierda ====================
+  //============= Inicio LECTURA Izquierda ====================
   Firebase.getString(firebaseData, nodo + izquierdaPath);
   izquierdaValue = firebaseData.stringData();
+  if (izquierdaValue == 1)
+    return 4;
   //============= Fin LECTURA Izquierda ==========================
-
-
-  // ================== Inicio IF Adelante =======================
-  if( adelanteValue == "1" ) {
-    Serial.println("Adelante");
-    digitalWrite(output18, HIGH);
-  } else if ( adelanteValue == "0" ) {
-    digitalWrite(output18, LOW);
-  }
-  // ===================== Fin IF Adelante =======================
-  // ================== Inicio IF Atras ==========================
-  if( atrasValue == "1" ) {
-    Serial.println("Atras");
-    digitalWrite(output19, HIGH);
-  } else if ( atrasValue == "0" ) {
-    digitalWrite(output19, LOW);
-  }
-  // ===================== Fin IF Atras =========================
-  // ================== Inicio IF Derecha =======================
-  if( derechaValue == "1" ) {
-    Serial.println("Derecha");
-    digitalWrite(output21, HIGH);
-  } else if ( derechaValue == "0" ) {
-    digitalWrite(output21, LOW);
-  }
-  // ===================== Fin IF Derecha ========================
-  // ================== Inicio IF Izquierda ======================
-  if( izquierdaValue == "1" ) {
-    Serial.println("Izquierda");
-    digitalWrite(output22, HIGH);
-  }  else if ( izquierdaValue == "0" ) {
-    digitalWrite(output22, LOW);
-  }
-  // ===================== Fin IF Izquierda ======================
-
-  delay(20);
+  return 0;
 }
+// ============================================================================
+// ============================== Funcion adelante ============================
+void adelante(int speed)
+{
+  // ====================== Giro a la derecha (adelante) del lado A =================
+  digitalWrite(ena21, speed); // Velocidad del lado A
+  digitalWrite(out18, HIGH);
+  digitalWrite(out19, LOW);
+  // ============================================================================
+  // ====================== Giro a la izquierda (adelante) del lado B ==============
+  digitalWrite(ena14, speed); // Velocidad del lado B
+  digitalWrite(out12, LOW);
+  digitalWrite(out13, HIGH);
+  // ============================================================================
+}
+// ============================================================================
+// ================================= Funcion atras ===============================
+void atras(int speed)
+{
+  // ======================= Giro a la izquierda (atras) del lado A =================
+  digitalWrite(ena21, speed); // Velocidad del lado A
+  digitalWrite(out18, LOW);
+  digitalWrite(out19, HIGH);
+  // ============================================================================
+  // ======================== Giro a la derecha (atras) del lado B =================
+  digitalWrite(ena14, speed); // Velocidad del lado B
+  digitalWrite(out12, HIGH);
+  digitalWrite(out13, LOW);
+  // ============================================================================
+}
+// ============================================================================
+// ================================= Funcion derecha ===============================
+void giroDerecha(int speed)
+{
+  // ======================= Giro a la izquierda (atras) del lado A =================
+  digitalWrite(ena21, speed); // Velocidad del lado A
+  digitalWrite(out18, LOW);
+  digitalWrite(out19, HIGH);
+  // ============================================================================
+  // =====================Giro a la izquierda (adelante) del lado B ==============
+  digitalWrite(ena14, speed); // Velocidad del lado B
+  digitalWrite(out12, LOW);
+  digitalWrite(out13, HIGH);
+  // ============================================================================
+}
+// ==============================================================================
+// =============================== Funcion izquierda =============================
+void giroIzquierda(int speed)
+{
+  // ====================== Giro a la derecha (adelante) del lado A =================
+  digitalWrite(ena21, speed); // Velocidad del lado A
+  digitalWrite(out18, HIGH);
+  digitalWrite(out19, LOW);
+  // ============================================================================
+  // ======================== Giro a la derecha (atras) del lado B =================
+  digitalWrite(ena14, speed); // Velocidad del lado B
+  digitalWrite(out12, HIGH);
+  digitalWrite(out13, LOW);
+  // ============================================================================
+}
+// ==============================================================================
